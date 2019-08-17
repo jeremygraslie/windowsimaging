@@ -1,0 +1,103 @@
+#### These instructions will allow you to download Windows 10 and customize it for deployment ###
+
+param(
+    [string]$Iso, # used to take an input filepath for the Iso variable
+    [string]$Build # Used to indicate which build of Windows it is.  Current version at time of release is 1903
+)
+
+# Create the directories used in the script to maintain consistency
+
+# Set the variables
+$Date = Get-Date -Format "yyyyMMdd"
+$WindowsVersion = "Win10_$($Build)_V1_English_x64" #This should comply with the naming scheme when downloading a fresh Windows 10 iso
+$WimFolder = "C:\Deployment_Test\Wim_Files\"
+$ModWimPath = "C:\Deployment_Test\Modified_Wim\"
+$MountImagePath = "C:\Deployment_Test\Mounted_Image"
+$DriverPath = "C:\Deployment_Test\Drivers\"
+$WimFileName = "$Date-$WindowsVersion.wim"
+$WimModFile = Join-Path -Path $ModWimPath -ChildPath "install.wim"
+
+# Step 1: Download the Windows 10 ISO from here:
+# https://www.microsoft.com/en-us/software-download/windows10ISO
+# Choose English, and 64-bit version
+
+# Mount the iso image to the computer
+$IsoDriveLetter = (Mount-DiskImage -Imagepath $Iso | Get-Volume).DriveLetter
+$SourceWim = Join-Path -Path (Get-PSDrive -Name $IsoDriveLetter).Root -ChildPath "sources\install.wim"
+
+# Copy the install.wim file over to the local drives, rename it to Today's date + install.wim
+$WimFinalPath = Join-Path -Path $WimFolder -ChildPath $WimFileName
+Copy-Item -Path $SourceWim -Destination $WimFinalPath -Verbose -Force
+
+# Un-mount the iso image 
+Dismount-DiskImage -Imagepath $Iso
+
+# Get the information about the wim file
+#Get-WindowsImage -ImagePath $WimFinalPath
+
+# Extract just Windows 10 Pro from the entire installer
+Export-WindowsImage -SourceImagePath $WimFinalPath -SourceName "Windows 10 Pro" -DestinationImagePath $ModWimPath\install.wim -DestinationName "Windows 10 Pro"
+
+##########################################################################################################################################
+
+# Mount the .wim file to start manipulating it
+dism /Mount-Image /ImageFile:$ModWimPath\install.wim /Name:"Windows 10 Pro" /MountDir:$MountImagePath
+
+# Use this to show installed Appx Packages
+# dism /Image:$MountImagePath /Get-ProvisionedAppxPackages
+
+# Remove bloat Appx Packages using the PackageName attribute.  These are non-essential packages.
+$AppxPackages = 
+    "Microsoft.BingWeather_4.25.20211.0_neutral_~_8wekyb3d8bbwe",
+    "Microsoft.People_2019.123.2346.0_neutral_~_8wekyb3d8bbwe",
+    "Microsoft.SkypeApp_14.35.152.0_neutral_~_kzf8qxf38zg5c",
+    "Microsoft.Wallet_2.4.18324.0_neutral_~_8wekyb3d8bbwe",
+    "Microsoft.Messaging_2019.125.32.0_neutral_~_8wekyb3d8bbwe",
+    "Microsoft.Microsoft3DViewer_5.1902.20012.0_neutral_~_8wekyb3d8bbwe",
+    "Microsoft.MixedReality.Portal_2000.19010.1151.0_neutral_~_8wekyb3d8bbwe",
+    "Microsoft.OneConnect_5.1902.361.0_neutral_~_8wekyb3d8bbwe",
+    "Microsoft.Print3D_3.3.311.0_neutral_~_8wekyb3d8bbwe",
+    "Microsoft.WindowsFeedbackHub_2019.226.2324.0_neutral_~_8wekyb3d8bbwe",
+    "microsoft.windowscommunicationsapps_16005.11029.20108.0_neutral_~_8wekyb3d8bbwe",
+    "Microsoft.Xbox.TCUI_1.23.28002.0_neutral_~_8wekyb3d8bbwe",
+    "Microsoft.XboxApp_48.48.7001.0_neutral_~_8wekyb3d8bbwe",
+    "Microsoft.XboxGameOverlay_1.32.17005.0_neutral_~_8wekyb3d8bbwe",
+    "Microsoft.XboxIdentityProvider_12.50.6001.0_neutral_~_8wekyb3d8bbwe",
+    "Microsoft.XboxSpeechToTextOverlay_1.17.29001.0_neutral_~_8wekyb3d8bbwe",
+    "Microsoft.YourPhone_2018.1128.231.0_neutral_~_8wekyb3d8bbwe",
+    "Microsoft.ZuneMusic_2019.18111.17311.0_neutral_~_8wekyb3d8bbwe",
+    "Microsoft.ZuneVideo_2019.18111.17311.0_neutral_~_8wekyb3d8bbwe"
+
+# Iterate through a loop and remove each Package in the above list
+$i = 0  #Used just as a counter
+foreach ($Package in $AppxPackages)
+    {
+        $i++ 
+        Write-Output "Removing package $i of " $AppxPackages.Length  #Write-Output something about progress
+        dism /Image:$MountImagePath /Remove-ProvisionedAppxPackage /PackageName:$($Package)
+        # Powershell equivalent:
+        # Get-AppXPackage $AppxPackages | Remove-AppXPackage
+    }
+
+
+# Install all Windows Updates
+Dism /Image:C:\Deployment_Test\OfflineImages /Add-Package /PackagePath:C:\Deployment_Test\Windows_Updates\1903\windows10.0-kb4497935-x64_e1e15758afc9d32ca57779428d145cfba3a12e4b.msu
+Dism /Image:C:\Deployment_Test\OfflineImages /Add-Package /PackagePath:C:\Deployment_Test\Windows_Updates\1903\windows10.0-kb4501375-x64_c54071d9b24a8efb7a48714883cf141a66b8c395.msu
+Dism /Image:C:\Deployment_Test\OfflineImages /Add-Package /PackagePath:C:\Deployment_Test\Windows_Updates\1903\windows10.0-kb4503293-x64_df9098dcf9761b5652aab2666438fb128c16ffe0.msu
+Dism /Image:C:\Deployment_Test\OfflineImages /Add-Package /PackagePath:C:\Deployment_Test\Windows_Updates\1903\windows10.0-kb4505903-x64_af8c6ab868423055a750797b6d52c1bd67e15a95.msu
+Dism /Image:C:\Deployment_Test\OfflineImages /Add-Package /PackagePath:C:\Deployment_Test\Windows_Updates\1903\windows10.0-kb4507453-x64_79902381f303bd21104b0f9067c086e5dd6cd3f2.msu
+
+
+# Add other packages
+
+
+# Enable features
+
+
+# Install all drivers from the driver folder, recursively
+# Currently set to just the P51, for testing
+dism /Image:$MountImagePath /Add-Driver /Driver:$DriverPath /Recurse
+
+# Unmount the image
+Dism /Unmount-Image /MountDir:$MountImagePath /Commit
+# Dism /Unmount-Image /MountDir:C:\Deployment_Test\OfflineImages /Discard
