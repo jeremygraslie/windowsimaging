@@ -1,13 +1,33 @@
 #### These instructions will allow you to download Windows 10 and customize it for deployment ###
 
+# Make the folder structure to maintain consistency
+set-location -Path "C:\"
+
+$FolderNames = 
+(
+    "Deployment_Test",
+    "Deployment_Test\ISO",
+    "Deployment_Test\Mounted_Image",
+    "Deployment_Test\Drivers",
+    "Deployment_Test\Wim_Files",
+    "Deployment_Test\Windows_Updates"
+)
+
+foreach ($Name in $FolderNames) {
+    If (Test-Path -Path $Name) {
+        Write-Output "Folder path $Name already exists."
+    } else {
+        Write-Output "Creating folder at C:\$Name"
+        New-Item -Path . -ItemType "Directory" -Name $Name
+    }    
+}
+
 # Set parameters for the command
 # Example: ./isodownload.ps1 -Iso C:\Deployment_Test\testimage.iso -Build 1903
 param(
     [string]$Iso, # used to take an input filepath for the Iso variable.  Example usage: -Iso C:\Deployment_Test\ISO\testimage.iso
     [string]$Build # Used to indicate which build of Windows it is.  Example usage: -Build 1903
 )
-
-# Make the folder structure to maintain consistency
 
 # Set the variables
 $Date = Get-Date -Format "yyyyMMdd"
