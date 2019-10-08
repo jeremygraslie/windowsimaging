@@ -1,0 +1,51 @@
+Create WIM file
+    1. Run the folderstructure.ps1 script to generate the necessary folder structure
+    2. Download the appropriate Windows 10 iso, store in the ISO folder C:\Deployment\ISO
+    3. Right-click the iso and mount it to the computer
+    4. Copy the file from D:\Sources\install.wim onto the working computer, store in Wim_Files folder C:\Deployment\Wim_Files
+    5. Run the makewim.ps1 script to edit the wim file
+
+Create Windows PE USB drive
+    1. Open Deployment and Imaging Tools Environment
+        Start > Search for "Deployment and Imaging Tools Environment" > Run as Administrator
+    2. Copy WindowsPE to local drive
+        Run the following command:
+            CopyPE amd64 [destination]
+        Example:
+            CopyPE amd64 C:Deployment\WinPEx64
+        *Keep the window open
+    3. Open Powershell and navigate to the WinPE Sources folder
+        Run the following command:
+            CD [destination]\WinPEx64\media\sources
+        Example:
+            Set-Location -Path "C:Deployment_Test\WinPEx64\media\Sources"
+    4. Mount the boot.wim file
+        Run the following command:
+            Mount-WindowsImage -ImagePath [location of the copied WindowsPE boot.wim file] -Index 1 -Path [location of where you want to mount the .wim file for editing]
+        Example:
+            Mount-WindowsImage -ImagePath "C:\Deployment_Test\WinPEx64\media\sources\boot.wim" -Index 1 -Path "C:\Deployment_Test\Wim_Mounts\WinPE"
+    5. Install drivers
+        Run the following command for each set of storage and ethernet drivers you want to install:
+            Add-WindowsDriver -Path [location of mounted WindowsPE] -Driver [location of drivers] -Recurse
+        Examples:
+            Add-WindowsDriver -Path "C:\Deployment_Test\Wim_Mounts\WinPE" -Driver "C:\Deployment_Test\Drivers\Lenovo\Thinkpad\P51\TP_P51_P71_W1064_1903_201904\Storage\" -Recurse
+            Add-WindowsDriver -Path "C:\Deployment_Test\Wim_Mounts\WinPE" -Driver "C:\Deployment_Test\Drivers\Lenovo\Thinkpad\P51\TP_P51_P71_W1064_1903_201904\Ethernet\" -Recurse
+            Add-WindowsDriver -Path "C:\Deployment_Test\Wim_Mounts\WinPE" -Driver "C:\Deployment_Test\Drivers\Lenovo\Thinkpad\X1 Carbon\6th Generation\TP_X1Carbon_MT20KG-20KH_W1064_1809_201906\Ethernet" -Recurse
+            Add-WindowsDriver -Path "C:\Deployment_Test\Wim_Mounts\WinPE" -Driver "C:\Deployment_Test\Drivers\Lenovo\Thinkpad\X1 Carbon\6th Generation\TP_X1Carbon_MT20KG-20KH_W1064_1809_201906\Storage" -Recurse
+    6. Dismount the WindowsPE folder and save all changes
+        Run the following command:
+            Dismount-WindowsImage -Path [location of mounted .wim file] -Save
+        Example:
+            Dismount-WindowsImage -Path "C:\Deployment_Test\Wim_Mounts\WinPE" -Save
+    7. Create WinPE media
+        Go back to the Deployment and Imaging Tools Environment window and run the following command:
+            MakeWinPEMedia /UFD [source WindowsPE folder] [destination drive]
+        Example:
+            MakeWinPEMEdia /UFD C:\Deployment_Test\Wim_Mounts\WinPE F:
+Copy WIM file to External drive
+Create partitions on new computer
+    1. Run the diskpart script from the External Drive
+
+Apply the image to the computer via DISM
+Create the BCD Boot file
+    bcdboot C:\Windows /s C:
